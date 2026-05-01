@@ -10,7 +10,9 @@
     "https://mobile.twitter.com/*",
     "https://x.com/*",
     "https://www.x.com/*",
-    "https://mobile.x.com/*"
+    "https://mobile.x.com/*",
+    "http://localhost:5000/*",
+    "http://127.0.0.1:5000/*"
   ],
   "action": {
     "default_title": "TweetCheck",

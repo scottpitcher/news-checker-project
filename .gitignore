@@ -1,0 +1,22 @@
+# Python virtual environment
+.venv/
+venv/
+backend/.venv/
+
+# Python cache
+__pycache__/
+backend/__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables / secrets
+.env
+backend/.env
+
+# macOS
+.DS_Store
+
+# Node / build artifacts
+node_modules/
+dist/
+build/
