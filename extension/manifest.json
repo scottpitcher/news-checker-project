@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "TweetCheck",
+  "version": "0.1.0",
+  "description": "Real-time claim context, AI-risk signals, source traceability, and credible alternatives on X.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://www.twitter.com/*",
+    "https://mobile.twitter.com/*",
+    "https://x.com/*",
+    "https://www.x.com/*",
+    "https://mobile.x.com/*"
+  ],
+  "action": {
+    "default_title": "TweetCheck",
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://twitter.com/*",
+        "https://www.twitter.com/*",
+        "https://mobile.twitter.com/*",
+        "https://x.com/*",
+        "https://www.x.com/*",
+        "https://mobile.x.com/*"
+      ],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["ui/panel.html", "ui/panel.css", "ui/panel.js", "ui/mock-data.js"],
+      "matches": [
+        "https://twitter.com/*",
+        "https://www.twitter.com/*",
+        "https://mobile.twitter.com/*",
+        "https://x.com/*",
+        "https://www.x.com/*",
+        "https://mobile.x.com/*"
+      ]
+    }
+  ]
+}
