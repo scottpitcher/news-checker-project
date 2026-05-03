@@ -1,6 +1,8 @@
 (() => {
   const PROCESSED = new WeakSet();
   const BTN_CLASS = "tweetcheck-btn";
+  const VERIFY_URL = "http://localhost:5000/verify";
+  const REQUEST_TIMEOUT_MS = 9000;
 
   function getTweetRoot(el) {
     return el?.closest?.('article[data-testid="tweet"]') ?? null;
@@ -18,6 +20,158 @@
     if (!article) return null;
     const t = article.querySelector("time[datetime]");
     return t ? t.getAttribute("datetime") : null;
+  }
+
+  function extractTweetUrl(article) {
+    if (!article) return location.href;
+    const statusLink = article.querySelector('a[href*="/status/"]');
+    if (!statusLink) return location.href;
+    const href = statusLink.getAttribute("href");
+    if (!href) return location.href;
+    try {
+      return new URL(href, location.origin).toString();
+    } catch {
+      return location.href;
+    }
+  }
+
+  function buildLoadingPayload(tweetText) {
+    return {
+      claimSummary: "Checking this post against TweetCheck backend...",
+      corroboration: "unverified",
+      disclaimers: [],
+      aiRisk: {
+        level: "medium",
+        headline: "Running verification",
+        reasons: ["Searching whitelisted outlets and contextual checkers."],
+      },
+      traceability: {
+        score: 0,
+        label: "Limited",
+        sourcesFound: 0,
+        citationsInTweet: 0,
+        entities: [],
+        notes: [tweetText ? "Processing selected tweet text." : "Processing post text."],
+      },
+      alternatives: [],
+    };
+  }
+
+  function normalizeEntities(entities) {
+    if (!Array.isArray(entities)) return [];
+    return entities
+      .map((item) => {
+        if (typeof item === "string") {
+          return { type: "entity", name: item };
+        }
+        if (item && typeof item === "object") {
+          return { type: item.type || "entity", name: item.name || String(item) };
+        }
+        return null;
+      })
+      .filter((item) => item && item.name);
+  }
+
+  function normalizePayload(raw, fallbackTweetText) {
+    const safe = raw && typeof raw === "object" ? raw : {};
+    const aiRisk = safe.aiRisk && typeof safe.aiRisk === "object" ? safe.aiRisk : {};
+    const traceability = safe.traceability && typeof safe.traceability === "object" ? safe.traceability : {};
+    const alternatives = Array.isArray(safe.alternatives) ? safe.alternatives : [];
+    const disclaimers = Array.isArray(safe.disclaimers) ? safe.disclaimers : [];
+    const allowedCorroboration = new Set(["corroborated", "unverified", "contradicted"]);
+
+    return {
+      claimSummary:
+        typeof safe.claimSummary === "string" && safe.claimSummary.trim()
+          ? safe.claimSummary
+          : (fallbackTweetText || "No claim summary available."),
+      corroboration: allowedCorroboration.has(safe.corroboration) ? safe.corroboration : "unverified",
+      disclaimers,
+      aiRisk: {
+        level: ["low", "medium", "high"].includes(aiRisk.level) ? aiRisk.level : "medium",
+        headline: aiRisk.headline || "No AI-risk summary available.",
+        reasons: Array.isArray(aiRisk.reasons) ? aiRisk.reasons : [],
+      },
+      traceability: {
+        score: Number.isFinite(Number(traceability.score)) ? Number(traceability.score) : 0,
+        label: traceability.label || "Limited",
+        sourcesFound: Number.isFinite(Number(traceability.sourcesFound))
+          ? Number(traceability.sourcesFound)
+          : 0,
+        citationsInTweet: Number.isFinite(Number(traceability.citationsInTweet))
+          ? Number(traceability.citationsInTweet)
+          : 0,
+        entities: normalizeEntities(traceability.entities),
+        notes: Array.isArray(traceability.notes) ? traceability.notes : [],
+      },
+      alternatives: alternatives
+        .filter((row) => row && typeof row === "object")
+        .map((row) => ({
+          outlet: row.outlet || "Whitelisted outlet",
+          title: row.title || "Related coverage",
+          url: row.url || "#",
+          note: row.note || "",
+        })),
+      debug: safe.debug || {},
+    };
+  }
+
+  function postRenderMessage(iframe, message) {
+    iframe?.contentWindow?.postMessage(message, "*");
+  }
+
+  async function fetchVerifyPayload(tweetText, tweetTime, tweetUrl) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(VERIFY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tweetText: tweetText || "",
+          tweetTimestamp: tweetTime || null,
+          tweetUrl: tweetUrl || location.href,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Backend error: ${response.status}`);
+      }
+      const payload = await response.json();
+      return normalizePayload(payload, tweetText);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function renderWithBackendOrMock(iframe, tweetText, tweetTime, tweetUrl) {
+    postRenderMessage(iframe, {
+      type: "TWEETCHECK_RENDER",
+      useMock: false,
+      tweetText,
+      tweetTime,
+      payload: buildLoadingPayload(tweetText),
+    });
+
+    try {
+      const payload = await fetchVerifyPayload(tweetText, tweetTime, tweetUrl);
+      postRenderMessage(iframe, {
+        type: "TWEETCHECK_RENDER",
+        useMock: false,
+        tweetText,
+        tweetTime,
+        payload,
+      });
+    } catch (err) {
+      // Safe fallback: keep existing demo behavior if backend is offline or invalid.
+      postRenderMessage(iframe, {
+        type: "TWEETCHECK_RENDER",
+        useMock: true,
+        tweetText,
+        tweetTime,
+        payload: null,
+      });
+    }
   }
 
   function ensureOverlay() {
@@ -53,7 +207,7 @@
     if (iframe) iframe.src = "about:blank";
   }
 
-  function openPanel(tweetText, tweetTime) {
+  function openPanel(tweetText, tweetTime, tweetUrl) {
     const overlay = ensureOverlay();
     const iframe = overlay.querySelector("iframe");
     const url = new URL(chrome.runtime.getURL("ui/panel.html"));
@@ -64,16 +218,7 @@
 
     const onLoad = () => {
       iframe.removeEventListener("load", onLoad);
-      iframe.contentWindow?.postMessage(
-        {
-          type: "TWEETCHECK_RENDER",
-          useMock: true,
-          tweetText,
-          tweetTime,
-          payload: null,
-        },
-        "*"
-      );
+      renderWithBackendOrMock(iframe, tweetText, tweetTime, tweetUrl);
     };
     iframe.addEventListener("load", onLoad);
   }
@@ -121,7 +266,8 @@
       e.stopPropagation();
       const text = extractTweetText(article);
       const time = extractTweetTime(article);
-      openPanel(text, time);
+      const tweetUrl = extractTweetUrl(article);
+      openPanel(text, time, tweetUrl);
     });
 
     wrap.appendChild(btn);
