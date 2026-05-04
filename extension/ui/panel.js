@@ -130,24 +130,55 @@
     const root = document.getElementById("tc-root");
     if (!root) return;
 
+    const backendMode = data.debug?.backendMode || "demo";
+    const isLive = backendMode === "live-newsapi";
+    const isBackendNoKey = backendMode === "no-newsapi-key";
+
+    let subtitleHtml;
+    let bannerHtml;
+    let modeChip;
+    if (isLive) {
+      subtitleHtml = `Trusted outlets, how verifiable the post is, AI-style cues, related reads. <strong>Live results</strong> from whitelisted news sources.`;
+      bannerHtml = `
+          <div class="tc-banner tc-banner--live">
+            <strong>Live</strong> — checked against whitelisted outlets in real time.
+            Open <strong>How we rate…</strong> under each section for the exact rules behind every label.
+          </div>`;
+      modeChip = { label: "Live", className: "tc-mode-chip tc-mode-chip--live", title: "Live backend results from whitelisted outlets." };
+    } else if (isBackendNoKey) {
+      subtitleHtml = `Trusted outlets, how verifiable the post is, AI-style cues, related reads. Backend on, but <strong>NEWS_API_KEY missing</strong>.`;
+      bannerHtml = `
+          <div class="tc-banner">
+            Backend connected, but no <code>NEWS_API_KEY</code> is set, so corroboration always returns 0 articles.
+            Add a key in <code>backend/.env</code> and restart Flask to enable live matching.
+          </div>`;
+      modeChip = { label: "No key", className: "tc-mode-chip tc-mode-chip--nokey", title: "Backend connected, but NEWS_API_KEY is not set, so corroboration is always 0." };
+    } else {
+      subtitleHtml = `Trusted outlets, how verifiable the post is, AI-style cues, related reads. <strong>Demo data</strong> until backend is on.`;
+      bannerHtml = `
+          <div class="tc-banner">
+            <strong>Demo</strong> — not a live fact-check.
+            Open <strong>How we rate…</strong> under each section for the exact rules behind every label.
+          </div>`;
+      modeChip = { label: "Demo", className: "tc-mode-chip tc-mode-chip--demo", title: "Demo data — backend offline or panel preview." };
+    }
+    const modeChipHtml = `<span class="${modeChip.className}" title="${esc(modeChip.title)}">${esc(modeChip.label)}</span>`;
+
     root.innerHTML = `
       <div class="tc-panel">
         <header class="tc-panel__header">
           <div>
             <h1 class="tc-panel__title">TweetCheck</h1>
-            <p class="tc-panel__subtitle">Trusted outlets, how verifiable the post is, AI-style cues, related reads. <strong>Demo data</strong> until backend is on.</p>
+            <p class="tc-panel__subtitle">${subtitleHtml}</p>
           </div>
           <button type="button" class="tc-panel__close" id="tc-close" aria-label="Close panel">×</button>
         </header>
         <div class="tc-panel__body">
-          <div class="tc-banner">
-            <strong>Demo</strong> — not a live fact-check.
-            Open <strong>How we rate…</strong> under each section for the exact rules behind every label.
-          </div>
+          ${bannerHtml}
 
           <div class="tc-card">
             <div class="tc-card__head">
-              <h2 class="tc-card__title">Corroboration</h2>
+              <h2 class="tc-card__title">Corroboration ${modeChipHtml}</h2>
               <span class="tc-pill ${cor.pill}">${esc(cor.label)}</span>
             </div>
             <p class="tc-section-intro">Checked against a <strong>fixed list</strong> of trusted outlets—not the whole internet.</p>

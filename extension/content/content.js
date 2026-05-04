@@ -1,7 +1,7 @@
 (() => {
   const PROCESSED = new WeakSet();
   const BTN_CLASS = "tweetcheck-btn";
-  const VERIFY_URL = "http://localhost:5000/verify";
+  const VERIFY_URL = "http://localhost:5050/verify";
   const REQUEST_TIMEOUT_MS = 9000;
 
   function getTweetRoot(el) {
