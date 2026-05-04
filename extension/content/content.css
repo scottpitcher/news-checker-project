@@ -1,0 +1,89 @@
+.tweetcheck-anchor {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.tweetcheck-btn {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #e7ecf1;
+  background: linear-gradient(135deg, #15202b 0%, #1c2a3a 100%);
+  border: 1px solid #38444d;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.tweetcheck-btn:hover {
+  border-color: #1d9bf0;
+  color: #fff;
+}
+
+.tweetcheck-btn:focus-visible {
+  outline: 2px solid #1d9bf0;
+  outline-offset: 2px;
+}
+
+.tweetcheck-btn__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1d9bf0;
+  box-shadow: 0 0 8px rgba(29, 155, 240, 0.7);
+}
+
+#tweetcheck-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  pointer-events: none;
+}
+
+#tweetcheck-overlay.is-open {
+  pointer-events: auto;
+}
+
+#tweetcheck-overlay .tweetcheck-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+#tweetcheck-overlay.is-open .tweetcheck-backdrop {
+  opacity: 1;
+}
+
+#tweetcheck-overlay .tweetcheck-sheet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(420px, 100vw);
+  height: 100%;
+  background: #0f1419;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.45);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+#tweetcheck-overlay.is-open .tweetcheck-sheet {
+  transform: translateX(0);
+}
+
+#tweetcheck-overlay iframe {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #0f1419;
+}
